@@ -14,8 +14,8 @@ import { toast } from "sonner";
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const [file, setFile] = useState<File | null>(null);
-  const [minMonths, setMinMonths] = useState<number>(2);
-  const [maxMonths, setMaxMonths] = useState<number>(3);
+  const [minMonths, setMinMonths] = useState<string>("2");
+  const [maxMonths, setMaxMonths] = useState<string>("3");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +83,15 @@ export default function Home() {
       return;
     }
 
-    if (minMonths >= maxMonths) {
+    const minMonthsNum = parseFloat(minMonths);
+    const maxMonthsNum = parseFloat(maxMonths);
+
+    if (isNaN(minMonthsNum) || isNaN(maxMonthsNum)) {
+      toast.error('請輸入有效的月數');
+      return;
+    }
+
+    if (minMonthsNum >= maxMonthsNum) {
       toast.error('最小月數必須小於最大月數');
       return;
     }
@@ -97,8 +105,8 @@ export default function Home() {
         await analyzeMutation.mutateAsync({
           fileBase64: base64Data,
           fileName: file.name,
-          minMonths,
-          maxMonths,
+          minMonths: minMonthsNum,
+          maxMonths: maxMonthsNum,
         });
       };
       reader.readAsDataURL(file);
@@ -204,7 +212,7 @@ export default function Home() {
                     max="12"
                     step="0.1"
                     value={minMonths}
-                    onChange={(e) => setMinMonths(parseFloat(e.target.value))}
+                    onChange={(e) => setMinMonths(e.target.value)}
                     className="mt-1"
                   />
                 </div>
@@ -217,7 +225,7 @@ export default function Home() {
                     max="12"
                     step="0.1"
                     value={maxMonths}
-                    onChange={(e) => setMaxMonths(parseFloat(e.target.value))}
+                    onChange={(e) => setMaxMonths(e.target.value)}
                     className="mt-1"
                   />
                 </div>
