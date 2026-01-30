@@ -31,7 +31,7 @@ describe("inventoryCalculator - 1-2月範圍測試", () => {
     }
   });
 
-  it("當預計補為1且改為2後超出範圍時，應該排除該品項", () => {
+  it("當預計補為1且改為2後，保留品項並顯示調整後的預估可賣月數", () => {
     const rawData = [
       {
         '品號': 99999,
@@ -53,10 +53,11 @@ describe("inventoryCalculator - 1-2月範圍測試", () => {
     });
 
     // 這個品項的預計補原本是1（預估月數=1.0），改為2後預估月數=1.1
-    // 應該仍在範圍內
+    // 應該保留該品項，即使超出範圍
+    expect(results.length).toBeGreaterThan(0);
     if (results.length > 0) {
       expect(results[0]?.預計補).toBe(2);
-      expect(results[0]?.預估可賣月數).toBeLessThanOrEqual(2);
+      expect(results[0]?.預估可賣月數).toBe(1.1);
     }
   });
 
