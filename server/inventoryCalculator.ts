@@ -33,7 +33,17 @@ export function parseExcelFile(buffer: Buffer): any[] {
   }
   
   const worksheet = workbook.Sheets['by規格'];
-  const data = XLSX.utils.sheet_to_json(worksheet);
+  const rawData = XLSX.utils.sheet_to_json(worksheet);
+  
+  // 清理欄位名稱中的換行符號
+  const data = rawData.map((row: any) => {
+    const cleanedRow: any = {};
+    for (const [key, value] of Object.entries(row as Record<string, any>)) {
+      const cleanKey = key.replace(/\n/g, '').replace(/\r/g, '');
+      cleanedRow[cleanKey] = value;
+    }
+    return cleanedRow;
+  });
   
   return data;
 }
