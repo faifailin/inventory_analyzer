@@ -19,6 +19,7 @@ export interface InventoryItem {
 export interface CalculationOptions {
   minMonths: number;
   maxMonths: number;
+  specialProductIds?: Set<string>;
 }
 
 /**
@@ -98,7 +99,7 @@ export function processInventoryData(
   rawData: any[],
   options: CalculationOptions
 ): InventoryItem[] {
-  const { minMonths, maxMonths } = options;
+  const { minMonths, maxMonths, specialProductIds } = options;
   const results: InventoryItem[] = [];
 
   for (const row of rawData) {
@@ -108,6 +109,7 @@ export function processInventoryData(
       continue;
     }
 
+    const productId = String(row['品號'] || '');
     const monthlySale = Number(row['前30天出庫量 (訂購-退貨)']) || 0;
     const available = Number(row['可賣量']) || 0;
     const inTransit = Number(row['寄倉在途量(未驗入)']) || 0;
@@ -115,29 +117,37 @@ export function processInventoryData(
     // 計算需求量
     const demand = monthlySale - available - inTransit;
 
-    // 計算最佳預計補
-    const optimalReplenishment = calculateOptimalReplenishment(
-      monthlySale,
-      available,
-      inTransit,
-      minMonths,
-      maxMonths
-    );
+    // 特殊品號處理：當可賣量=1且需求量=0時，強制設定預計補=1
+    const isSpecialProduct = specialProductIds?.has(productId);
+    let optimalReplenishment: number | null = null;
+    
+    if (isSpecialProduct && available === 1 && demand === 0) {
+      optimalReplenishment = 1;
+    } else {
+      // 一般品項的計算邏輯
+      optimalReplenishment = calculateOptimalReplenishment(
+        monthlySale,
+        available,
+        inTransit,
+        minMonths,
+        maxMonths
+      );
 
-    // 如果沒有找到合適的預計補值，跳過
-    if (optimalReplenishment === null) {
-      continue;
+      // 如果沒有找到合適的預計補值，跳過
+      if (optimalReplenishment === null) {
+        continue;
+      }
+
+      // 只保留預計補大於0的品項
+      if (optimalReplenishment <= 0) {
+        continue;
+      }
     }
 
     // 計算預估可賣月數
     const estimatedMonths = monthlySale > 0
       ? (optimalReplenishment + available + inTransit) / monthlySale
       : 0;
-
-    // 只保留預計補大於0的品項
-    if (optimalReplenishment <= 0) {
-      continue;
-    }
 
     results.push({
       品號: Number(row['品號']) || 0,

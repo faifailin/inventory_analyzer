@@ -1,6 +1,6 @@
 import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, analysisRecords, InsertAnalysisRecord, AnalysisRecord } from "../drizzle/schema";
+import { InsertUser, users, analysisRecords, InsertAnalysisRecord, AnalysisRecord, specialProductIds, InsertSpecialProductId, SpecialProductId } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -130,4 +130,61 @@ export async function getAnalysisRecordById(id: number): Promise<AnalysisRecord 
 
   const result = await db.select().from(analysisRecords).where(eq(analysisRecords.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// 特殊品號相關查詢
+
+export async function getAllSpecialProductIds(): Promise<SpecialProductId[]> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  return db.select().from(specialProductIds).orderBy(specialProductIds.productId);
+}
+
+export async function getSpecialProductIdsSet(): Promise<Set<string>> {
+  const products = await getAllSpecialProductIds();
+  return new Set(products.map(p => p.productId));
+}
+
+export async function addSpecialProductId(productId: string, note?: string): Promise<SpecialProductId> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(specialProductIds).values({ productId, note: note || null });
+  const insertId = Number(result[0].insertId);
+  
+  const created = await db.select().from(specialProductIds).where(eq(specialProductIds.id, insertId)).limit(1);
+  return created[0]!;
+}
+
+export async function removeSpecialProductId(productId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  await db.delete(specialProductIds).where(eq(specialProductIds.productId, productId));
+}
+
+export async function initializeSpecialProductIds(productIds: string[]): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  // 檢查是否已經有資料
+  const existing = await db.select().from(specialProductIds).limit(1);
+  if (existing.length > 0) {
+    console.log("[Database] Special product IDs already initialized");
+    return;
+  }
+
+  // 批次插入
+  const values = productIds.map(id => ({ productId: id, note: null }));
+  await db.insert(specialProductIds).values(values);
+  console.log(`[Database] Initialized ${productIds.length} special product IDs`);
 }

@@ -7,7 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2, Settings } from "lucide-react";
+import { Link } from "wouter";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 
@@ -153,7 +154,15 @@ export default function Home() {
         <div className="max-w-4xl mx-auto space-y-6">
           {/* 標題 */}
           <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold text-gray-900">庫存補貨計算工具</h1>
+            <div className="flex items-center justify-center gap-4">
+              <h1 className="text-4xl font-bold text-gray-900">庫存補貨計算工具</h1>
+              <Link href="/special-products">
+                <Button variant="outline" size="sm">
+                  <Settings className="mr-2 h-4 w-4" />
+                  特殊品號管理
+                </Button>
+              </Link>
+            </div>
             <p className="text-gray-600">上傳Excel檔案，自動計算商品補貨需求</p>
           </div>
 

@@ -54,3 +54,21 @@ export const analysisRecords = mysqlTable("analysis_records", {
 
 export type AnalysisRecord = typeof analysisRecords.$inferSelect;
 export type InsertAnalysisRecord = typeof analysisRecords.$inferInsert;
+
+/**
+ * 特殊品號表
+ * 儲存需要特殊處理的品號清單
+ * 當這些品號滿足「可賣量=1」且「需求量=0」時，強制設定「預計補=1」
+ */
+export const specialProductIds = mysqlTable("special_product_ids", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 品號 */
+  productId: varchar("productId", { length: 50 }).notNull().unique(),
+  /** 備註 */
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SpecialProductId = typeof specialProductIds.$inferSelect;
+export type InsertSpecialProductId = typeof specialProductIds.$inferInsert;
