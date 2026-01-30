@@ -1,10 +1,14 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { z } from "zod";
+import { createAnalysisRecord, updateAnalysisRecord, getUserAnalysisRecords, getAnalysisRecordById } from "./db";
+import { parseExcelFile, processInventoryData, exportToExcel } from "./inventoryCalculator";
+import { storagePut } from "./storage";
+import { nanoid } from "nanoid";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -17,12 +21,107 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  inventory: router({
+    // 分析庫存檔案
+    analyze: protectedProcedure
+      .input(z.object({
+        fileBase64: z.string(),
+        fileName: z.string(),
+        minMonths: z.number().min(0).max(12),
+        maxMonths: z.number().min(0).max(12),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          // 驗證範圍
+          if (input.minMonths >= input.maxMonths) {
+            throw new Error('最小月數必須小於最大月數');
+          }
+
+          // 解碼Base64檔案
+          const fileBuffer = Buffer.from(input.fileBase64, 'base64');
+
+          // 上傳原始檔案到S3
+          const originalFileKey = `inventory-analysis/${ctx.user.id}/${nanoid()}-${input.fileName}`;
+          const { url: originalFileUrl } = await storagePut(
+            originalFileKey,
+            fileBuffer,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          );
+
+          // 建立分析記錄
+          const record = await createAnalysisRecord({
+            userId: ctx.user.id,
+            originalFileUrl,
+            originalFileName: input.fileName,
+            minMonths: input.minMonths.toString(),
+            maxMonths: input.maxMonths.toString(),
+            status: 'processing',
+          });
+
+          try {
+            // 解析Excel檔案
+            const rawData = parseExcelFile(fileBuffer);
+
+            // 處理庫存數據
+            const results = processInventoryData(rawData, {
+              minMonths: input.minMonths,
+              maxMonths: input.maxMonths,
+            });
+
+            // 匯出結果為Excel
+            const resultBuffer = exportToExcel(results);
+
+            // 上傳結果檔案到S3
+            const resultFileKey = `inventory-analysis/${ctx.user.id}/${nanoid()}-result.xlsx`;
+            const { url: resultFileUrl } = await storagePut(
+              resultFileKey,
+              resultBuffer,
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            );
+
+            // 更新記錄
+            await updateAnalysisRecord(record.id, {
+              resultFileUrl,
+              matchedItemsCount: results.length,
+              status: 'completed',
+            });
+
+            return {
+              success: true,
+              recordId: record.id,
+              matchedItemsCount: results.length,
+              resultFileUrl,
+              previewItems: results.slice(0, 5), // 返回前5筆預覽
+            };
+          } catch (error) {
+            // 更新記錄為失敗狀態
+            await updateAnalysisRecord(record.id, {
+              status: 'failed',
+              errorMessage: error instanceof Error ? error.message : '未知錯誤',
+            });
+            throw error;
+          }
+        } catch (error) {
+          throw new Error(error instanceof Error ? error.message : '分析失敗');
+        }
+      }),
+
+    // 取得使用者的分析記錄列表
+    getRecords: protectedProcedure.query(async ({ ctx }) => {
+      return getUserAnalysisRecords(ctx.user.id);
+    }),
+
+    // 取得單一分析記錄
+    getRecord: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const record = await getAnalysisRecordById(input.id);
+        if (!record || record.userId !== ctx.user.id) {
+          throw new Error('找不到記錄或無權限存取');
+        }
+        return record;
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

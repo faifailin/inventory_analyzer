@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, analysisRecords, InsertAnalysisRecord, AnalysisRecord } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,45 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// 庫存分析記錄相關查詢
+
+export async function createAnalysisRecord(record: InsertAnalysisRecord): Promise<AnalysisRecord> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(analysisRecords).values(record);
+  const insertId = Number(result[0].insertId);
+  
+  const created = await db.select().from(analysisRecords).where(eq(analysisRecords.id, insertId)).limit(1);
+  return created[0]!;
+}
+
+export async function updateAnalysisRecord(id: number, updates: Partial<InsertAnalysisRecord>): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  await db.update(analysisRecords).set(updates).where(eq(analysisRecords.id, id));
+}
+
+export async function getUserAnalysisRecords(userId: number): Promise<AnalysisRecord[]> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  return db.select().from(analysisRecords).where(eq(analysisRecords.userId, userId)).orderBy(desc(analysisRecords.createdAt));
+}
+
+export async function getAnalysisRecordById(id: number): Promise<AnalysisRecord | undefined> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.select().from(analysisRecords).where(eq(analysisRecords.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}

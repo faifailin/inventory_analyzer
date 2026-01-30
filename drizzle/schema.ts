@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,32 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * 庫存分析記錄表
+ * 儲存每次分析的結果和參數
+ */
+export const analysisRecords = mysqlTable("analysis_records", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  /** 原始檔案在S3的URL */
+  originalFileUrl: text("originalFileUrl").notNull(),
+  /** 原始檔案名稱 */
+  originalFileName: varchar("originalFileName", { length: 255 }).notNull(),
+  /** 結果檔案在S3的URL */
+  resultFileUrl: text("resultFileUrl"),
+  /** 預估可賣月數範圍最小值 */
+  minMonths: decimal("minMonths", { precision: 5, scale: 2 }).notNull(),
+  /** 預估可賣月數範圍最大值 */
+  maxMonths: decimal("maxMonths", { precision: 5, scale: 2 }).notNull(),
+  /** 符合條件的品項數量 */
+  matchedItemsCount: int("matchedItemsCount"),
+  /** 分析狀態 */
+  status: mysqlEnum("status", ["processing", "completed", "failed"]).default("processing").notNull(),
+  /** 錯誤訊息（如果失敗） */
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AnalysisRecord = typeof analysisRecords.$inferSelect;
+export type InsertAnalysisRecord = typeof analysisRecords.$inferInsert;
