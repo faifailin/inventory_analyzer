@@ -73,9 +73,15 @@ function calculateOptimalReplenishment(
     }
   }
 
-  // 如果預計補為1，強制改為2
+  // 如果預計補為1，強制改為2，但需要重新驗證是否在範圍內
   if (bestReplenishment === 1) {
     bestReplenishment = 2;
+    // 重新計算預估可賣月數
+    const newEstimatedMonths = (bestReplenishment + available + inTransit) / monthlySale;
+    // 如果超出範圍，則返回null
+    if (newEstimatedMonths > maxMonths) {
+      return null;
+    }
   }
 
   return bestReplenishment;
