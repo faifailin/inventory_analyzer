@@ -117,22 +117,28 @@ export function processInventoryData(
     // 計算需求量
     const demand = monthlySale - available - inTransit;
 
-    // 特殊品號處理：當可賣量=1且需求量=0時，強制設定預計補=1
+    // 一般品項的計算邏輯
     const isSpecialProduct = specialProductIds?.has(productId);
-    let optimalReplenishment: number | null = null;
-    
-    if (isSpecialProduct && available === 1 && demand === 0) {
+    let optimalReplenishment: number | null = calculateOptimalReplenishment(
+      monthlySale,
+      available,
+      inTransit,
+      minMonths,
+      maxMonths
+    );
+
+    // 特殊品號處理：
+    // 條件1: 特殊品號清單中的品號
+    // 條件2: 寄倉在途量(未驗入) + 可賣量 = 1
+    // 條件3: 在設定的月份條件下，預計補 = 0
+    // 三個條件同時滿足時，強制設定預計補 = 1
+    if (
+      isSpecialProduct &&
+      (available + inTransit) === 1 &&
+      (optimalReplenishment === 0 || optimalReplenishment === null)
+    ) {
       optimalReplenishment = 1;
     } else {
-      // 一般品項的計算邏輯
-      optimalReplenishment = calculateOptimalReplenishment(
-        monthlySale,
-        available,
-        inTransit,
-        minMonths,
-        maxMonths
-      );
-
       // 如果沒有找到合適的預計補值，跳過
       if (optimalReplenishment === null) {
         continue;
