@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { createAnalysisRecord, updateAnalysisRecord, getUserAnalysisRecords, getAnalysisRecordById, getSpecialProductIdsSet, getAllSpecialProductIds, addSpecialProductId, removeSpecialProductId, initializeSpecialProductIds } from "./db";
+import { createAnalysisRecord, updateAnalysisRecord, getUserAnalysisRecords, getAnalysisRecordById, getSpecialProductIdsSet, getAllSpecialProductIds, addSpecialProductId, removeSpecialProductId, initializeSpecialProductIds, getNextDailyExportSequence } from "./db";
 import { parseExcelFile, processInventoryData, exportToExcel } from "./inventoryCalculator";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -72,11 +72,21 @@ export const appRouter = router({
               specialProductIds,
             });
 
+            // 產生當日序號並組合檔名
+            const now = new Date();
+            const dateKey = [
+              now.getFullYear(),
+              String(now.getMonth() + 1).padStart(2, '0'),
+              String(now.getDate()).padStart(2, '0'),
+            ].join('');
+            const seq = await getNextDailyExportSequence(dateKey);
+            const exportFileName = `momo預計補計算_${dateKey}_${seq}.xlsx`;
+
             // 匯出結果為Excel
             const resultBuffer = exportToExcel(results);
 
             // 上傳結果檔案到S3
-            const resultFileKey = `inventory-analysis/${ctx.user.id}/${nanoid()}-result.xlsx`;
+            const resultFileKey = `inventory-analysis/${ctx.user.id}/${nanoid()}-${exportFileName}`;
             const { url: resultFileUrl } = await storagePut(
               resultFileKey,
               resultBuffer,
@@ -95,6 +105,7 @@ export const appRouter = router({
               recordId: record.id,
               matchedItemsCount: results.length,
               resultFileUrl,
+              exportFileName,
               previewItems: results.slice(0, 5), // 返回前5筆預覽
             };
           } catch (error) {

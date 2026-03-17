@@ -72,3 +72,19 @@ export const specialProductIds = mysqlTable("special_product_ids", {
 
 export type SpecialProductId = typeof specialProductIds.$inferSelect;
 export type InsertSpecialProductId = typeof specialProductIds.$inferInsert;
+
+/**
+ * 每日匹出計數器
+ * 記錄每天匹出次數，用於產生檔案序號
+ */
+export const dailyExportCounter = mysqlTable("daily_export_counter", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 日期，格式 YYYYMMDD */
+  dateKey: varchar("dateKey", { length: 8 }).notNull().unique(),
+  /** 當日已匹出次數 */
+  count: int("count").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DailyExportCounter = typeof dailyExportCounter.$inferSelect;
+export type InsertDailyExportCounter = typeof dailyExportCounter.$inferInsert;

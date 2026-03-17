@@ -116,9 +116,24 @@ export default function Home() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (analyzeMutation.data?.resultFileUrl) {
-      window.open(analyzeMutation.data.resultFileUrl, '_blank');
+      try {
+        // 使用 fetch 下載並指定檔名
+        const response = await fetch(analyzeMutation.data.resultFileUrl);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = analyzeMutation.data.exportFileName ?? 'momo預計補計算.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        // 如果 fetch 失敗，回退用 window.open
+        window.open(analyzeMutation.data.resultFileUrl, '_blank');
+      }
     }
   };
 

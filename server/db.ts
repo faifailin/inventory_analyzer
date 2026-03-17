@@ -1,6 +1,6 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, analysisRecords, InsertAnalysisRecord, AnalysisRecord, specialProductIds, InsertSpecialProductId, SpecialProductId } from "../drizzle/schema";
+import { InsertUser, users, analysisRecords, InsertAnalysisRecord, AnalysisRecord, specialProductIds, InsertSpecialProductId, SpecialProductId, dailyExportCounter } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -168,6 +168,35 @@ export async function removeSpecialProductId(productId: string): Promise<void> {
   }
 
   await db.delete(specialProductIds).where(eq(specialProductIds.productId, productId));
+}
+
+// 每日匯出計數器相關查詢
+
+/**
+ * 取得並遞增當日匯出序號，返回格式如 "01", "02", ...
+ * 使用 UPSERT 確保並發安全
+ */
+export async function getNextDailyExportSequence(dateKey: string): Promise<string> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  // Upsert：若當日記錄不存在則插入count=1，否則count+1
+  await db
+    .insert(dailyExportCounter)
+    .values({ dateKey, count: 1 })
+    .onDuplicateKeyUpdate({ set: { count: sql`count + 1` } });
+
+  // 讀取更新後的count
+  const result = await db
+    .select()
+    .from(dailyExportCounter)
+    .where(eq(dailyExportCounter.dateKey, dateKey))
+    .limit(1);
+
+  const count = result[0]?.count ?? 1;
+  return String(count).padStart(2, '0');
 }
 
 export async function initializeSpecialProductIds(productIds: string[]): Promise<void> {
