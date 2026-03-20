@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export interface InventoryItem {
+  商品原廠編號: string;
   品號: number;
   單品編號: number;
   品名: string;
@@ -157,6 +158,7 @@ export function processInventoryData(
       : 0;
 
     results.push({
+      商品原廠編號: String(row['商品原廠編號'] || ''),
       品號: Number(row['品號']) || 0,
       單品編號: Number(row['單品編號']) || 0,
       品名: String(row['品名'] || ''),
@@ -183,6 +185,7 @@ export function processInventoryData(
 export function exportToExcel(items: InventoryItem[]): Buffer {
   // 轉換為適合Excel的格式
   const excelData = items.map(item => ({
+    '商品原廠編號': item.商品原廠編號,
     '品號': item.品號,
     '單品編號': item.單品編號,
     '品名': item.品名,
