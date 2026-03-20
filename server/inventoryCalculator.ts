@@ -12,6 +12,7 @@ export interface InventoryItem {
   寄倉在途量: number;
   可賣量: number;
   需求量: number;
+  目前可賣月數: number;
   預計補: number;
   預估可賣月數: number;
 }
@@ -167,6 +168,7 @@ export function processInventoryData(
       寄倉在途量: inTransit,
       可賣量: available,
       需求量: demand,
+      目前可賣月數: monthlySale > 0 ? Math.round((available + inTransit) / monthlySale * 100) / 100 : 0,
       預計補: optimalReplenishment,
       預估可賣月數: Math.round(estimatedMonths * 100) / 100, // 保留兩位小數
     });
@@ -192,6 +194,7 @@ export function exportToExcel(items: InventoryItem[]): Buffer {
     '寄倉在途量(未驗入)': item.寄倉在途量,
     '可賣量': item.可賣量,
     '需求量': item.需求量,
+    '目前可賣月數': item.目前可賣月數,
     '預計補': item.預計補,
     '預估可賣月數': item.預估可賣月數,
   }));
