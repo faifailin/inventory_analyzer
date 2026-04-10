@@ -180,6 +180,88 @@ export function processInventoryData(
 }
 
 /**
+ * 暫時中斷品項介面（只需要部分欄位）
+ */
+export interface SuspendedItem {
+  商品原廠編號: string;
+  品號: number;
+  單品編號: number;
+  品名: string;
+  規格: string;
+  商品狀態: string;
+  前30天出庫量: number;
+  庫齡: number;
+  滯銷天數: number;
+  寄倉在途量: number;
+  可賣量: number;
+  庫存合計: number;
+}
+
+/**
+ * 篩選暫時中斷且有庫存的品項
+ * 條件：商品狀態為「暫時中斷」且（寄倉在途量+可賣量）> 0
+ */
+export function getSuspendedItemsWithStock(rawData: any[]): SuspendedItem[] {
+  const results: SuspendedItem[] = [];
+
+  for (const row of rawData) {
+    const status = row['商品狀態'];
+    if (status !== '暫時中斷') continue;
+
+    const available = Number(row['可賣量']) || 0;
+    const inTransit = Number(row['寄倉在途量(未驗入)']) || 0;
+    const stockTotal = available + inTransit;
+
+    if (stockTotal <= 0) continue;
+
+    const monthlySale = Number(row['前30天出庫量 (訂購-退貨)']) || 0;
+
+    results.push({
+      商品原廠編號: String(row['商品原廠編號'] || ''),
+      品號: Number(row['品號']) || 0,
+      單品編號: Number(row['單品編號']) || 0,
+      品名: String(row['品名'] || ''),
+      規格: String(row['規格'] || ''),
+      商品狀態: status,
+      前30天出庫量: monthlySale,
+      庫齡: Number(row['庫齡']) || 0,
+      滯銷天數: Number(row['滯銷天數(每週一計算)']) || 0,
+      寄倉在途量: inTransit,
+      可賣量: available,
+      庫存合計: stockTotal,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * 將暫時中斷品項匯出為Excel Buffer
+ */
+export function exportSuspendedToExcel(items: SuspendedItem[]): Buffer {
+  const excelData = items.map(item => ({
+    '商品原廠編號': item.商品原廠編號,
+    '品號': item.品號,
+    '單品編號': item.單品編號,
+    '品名': item.品名,
+    '規格': item.規格,
+    '商品狀態': item.商品狀態,
+    '前30天出庫量(訂購-取消-退貨)': item.前30天出庫量,
+    '庫齡': item.庫齡,
+    '滯銷天數(每週一計算)': item.滯銷天數,
+    '寄倉在途量(未驗入)': item.寄倉在途量,
+    '可賣量': item.可賣量,
+    '庫存合計(寄倉在途+可賣量)': item.庫存合計,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, '暫時中斷有庫存品項');
+
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+}
+
+/**
  * 將結果匯出為Excel Buffer
  */
 export function exportToExcel(items: InventoryItem[]): Buffer {

@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2, Settings } from "lucide-react";
+import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2, Settings, PauseCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -330,6 +330,61 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 暫時中斷且有庫存品項 */}
+          {analyzeMutation.isSuccess && analyzeMutation.data && analyzeMutation.data.suspendedItems && analyzeMutation.data.suspendedItems.length > 0 && (
+            <Card className="border-amber-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-amber-700">
+                  <PauseCircle className="h-5 w-5" />
+                  暫時中斷且有庫存品項
+                </CardTitle>
+                <CardDescription>
+                  共 {analyzeMutation.data.suspendedItems.length} 個品項屬「暫時中斷」且寄倉在途量+可賣量 &gt; 0
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="border border-amber-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-amber-50">
+                          <TableHead>商品原廠編號</TableHead>
+                          <TableHead>品號</TableHead>
+                          <TableHead>單品編號</TableHead>
+                          <TableHead>品名</TableHead>
+                          <TableHead>規格</TableHead>
+                          <TableHead>前30天出庫量</TableHead>
+                          <TableHead>庫齡</TableHead>
+                          <TableHead>滯銷天數</TableHead>
+                          <TableHead>寄倉在途量</TableHead>
+                          <TableHead>可賣量</TableHead>
+                          <TableHead className="font-semibold text-amber-700">庫存合計</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analyzeMutation.data.suspendedItems.map((item, index) => (
+                          <TableRow key={index} className="hover:bg-amber-50/50">
+                            <TableCell>{item.商品原廠編號 || '-'}</TableCell>
+                            <TableCell>{item.品號}</TableCell>
+                            <TableCell>{String(item.單品編號).padStart(3, '0')}</TableCell>
+                            <TableCell className="max-w-xs truncate">{item.品名}</TableCell>
+                            <TableCell>{item.規格}</TableCell>
+                            <TableCell>{item.前30天出庫量}</TableCell>
+                            <TableCell>{item.庫齡}</TableCell>
+                            <TableCell>{item.滯銷天數}</TableCell>
+                            <TableCell>{item.寄倉在途量}</TableCell>
+                            <TableCell>{item.可賣量}</TableCell>
+                            <TableCell className="font-semibold text-amber-700">{item.庫存合計}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}

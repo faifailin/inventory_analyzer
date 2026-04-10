@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { createAnalysisRecord, updateAnalysisRecord, getUserAnalysisRecords, getAnalysisRecordById, getSpecialProductIdsSet, getAllSpecialProductIds, addSpecialProductId, removeSpecialProductId, initializeSpecialProductIds, getNextDailyExportSequence } from "./db";
-import { parseExcelFile, processInventoryData, exportToExcel } from "./inventoryCalculator";
+import { parseExcelFile, processInventoryData, exportToExcel, getSuspendedItemsWithStock } from "./inventoryCalculator";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 
@@ -100,6 +100,9 @@ export const appRouter = router({
               status: 'completed',
             });
 
+            // 篩選暫時中斷且有庫存的品項
+            const suspendedItems = getSuspendedItemsWithStock(rawData);
+
             return {
               success: true,
               recordId: record.id,
@@ -107,6 +110,7 @@ export const appRouter = router({
               resultFileUrl,
               exportFileName,
               previewItems: results.slice(0, 5), // 返回前5筆預覽
+              suspendedItems, // 暫時中斷且有庫存的品項
             };
           } catch (error) {
             // 更新記錄為失敗狀態
